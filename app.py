@@ -145,7 +145,7 @@ def checkout_book():
         raise e
 
     customer: Customer = customers.get_customer(customer_id)
-    if customer.checkouts > MAX_BOOKS_CHECKED_OUT:
+    if customer.checkouts >= MAX_BOOKS_CHECKED_OUT:
         e = HTTPException(f"Cannot check out more than {MAX_BOOKS_CHECKED_OUT} for customer: {customer}")
         e.code = HTTPStatus.CONFLICT
         raise e
