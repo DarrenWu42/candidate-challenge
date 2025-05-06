@@ -1,11 +1,10 @@
-import sys
 from datetime import date
 from http import HTTPStatus
 
 from werkzeug.exceptions import HTTPException
 from flask import Flask, json, request, Response
 
-from models import Book, Customer, Checkout, Books, Customers, Checkouts
+from models import Book, Customer, Checkout, Return, Books, Customers, Checkouts
 
 app = Flask(__name__)
 
@@ -27,31 +26,40 @@ def handle_exception(e: HTTPException):
     response.content_type = "application/json"
     return response
 
-@app.post("/api/books")
-def add_book():
+def parse_validate_request(object_type: type[Book | Customer | Checkout | Return]):
     # attempt to retrieve json from request body
     body = request.json
 
-    app.logger.info(f"add_book: called with {body}")
+    app.logger.info(f"{request.path}: called with {body}")
+
+    ret_dict = {}
 
     # check all required book attributes in request
-    for attr in Book.REQUIRED_ATTRIBUTES:
+    for attr, transformer, validator in object_type.REQUIRED_ATTRIBUTES:
         if attr not in body:
             e = HTTPException(f"Attribute retrieval failed! {attr} not in {body}")
             e.code = HTTPStatus.BAD_REQUEST
             raise e
+        
+        attr_value = transformer(body[attr])
+        if not validator(attr_value):
+            e = HTTPException(f"Attribute validation failed! {attr} in {body} failed check!")
+            e.code = HTTPStatus.BAD_REQUEST
+            raise e
+        
+        ret_dict[attr] = attr_value
+
+    return ret_dict
+
+@app.post("/api/books")
+def add_book():
+    body = parse_validate_request(Book)
 
     # extract book attributes to variables
     title: str = body["title"]
     author: str = body["author"]
     isbn: str = body["isbn"]
     copies: int = body["copies"]
-
-    # check all book attributes are good
-    if not title or not author or not isbn or copies < 0:
-        e = HTTPException(f"Attribute check failed! One of {Book.REQUIRED_ATTRIBUTES} in {body} is bad!")
-        e.code = HTTPStatus.BAD_REQUEST
-        raise e
 
     # add book to library
     book = library.add_book(title, author, isbn, copies)
@@ -67,27 +75,12 @@ def get_book(isbn):
 
 @app.post("/api/customers")
 def create_customer():
-    # attempt to retrieve json from request body
-    body = request.json
-    app.logger.info(f"create_customer: called with {body}")
-
-    # check all required customer attributes in request
-    for attr in Customer.REQUIRED_ATTRIBUTES:
-        if attr not in body:
-            e = HTTPException(f"Attribute retrieval failed! {attr} not in {body}")
-            e.code = HTTPStatus.BAD_REQUEST
-            raise e
+    body = parse_validate_request(Customer)
 
     # extract customer attributes to variables
     name: str = body["name"]
     email: str = body["email"]
     customer_id: str = body["customer_id"]
-
-    # check all customer attributes are good
-    if not name or not email or not customer_id:
-        e = HTTPException(f"Attribute check failed! One of {Customer.REQUIRED_ATTRIBUTES} in {body} is bad!")
-        e.code = HTTPStatus.BAD_REQUEST
-        raise e
 
     # add customer to customers
     customer = customers.add_customer(name, email, customer_id)
@@ -115,27 +108,12 @@ def get_customer_books(customer_id):
 
 @app.post("/api/checkouts")
 def checkout_book():
-    # attempt to retrieve json from request body
-    body = request.json
-    app.logger.info(f"checkout_book: called with {body}")
-
-    # check all required checkout attributes in request
-    for attr in Checkout.REQUIRED_ATTRIBUTES:
-        if attr not in body:
-            e = HTTPException(f"Attribute retrieval failed! {attr} not in {body}")
-            e.code = HTTPStatus.BAD_REQUEST
-            raise e
+    body = parse_validate_request(Checkout)
 
     # extract checkout attributes to variables
     isbn: str = body["isbn"]
     customer_id: str = body["customer_id"]
-    due_date: date = date.fromisoformat(body["due_date"])
-
-    # check all checkout attributes are good
-    if not isbn or not customer_id or due_date < date.today():
-        e = HTTPException(f"Attribute check failed! One of {Checkout.REQUIRED_ATTRIBUTES} in {body} is bad!")
-        e.code = HTTPStatus.BAD_REQUEST
-        raise e
+    due_date: date = body["due_date"]
 
     # check if checkout is allowed to happen
     book: Book = library.get_book(isbn)
@@ -159,26 +137,11 @@ def checkout_book():
 
 @app.post("/api/returns")
 def return_book():
-    # attempt to retrieve json from request body
-    body = request.json
-    app.logger.info(f"return_book: called with {body}")
-
-    # check all required return attributes in request
-    for attr in ["isbn", "customer_id"]:
-        if attr not in body:
-            e = HTTPException(f"Attribute retrieval failed! {attr} not in {body}")
-            e.code = HTTPStatus.BAD_REQUEST
-            raise e
+    body = parse_validate_request(Return)
 
     # extract return attributes to variables
     isbn: str = body["isbn"]
     customer_id: str = body["customer_id"]
-
-    # check all return attributes are good
-    if not isbn or not customer_id:
-        e = HTTPException(f"Attribute check failed! One of {['isbn', 'customer_id']} in {body} is bad!")
-        e.code = HTTPStatus.BAD_REQUEST
-        raise e
 
     # check if checkout even exists
     if not checkouts.contains_isbn_cust_id(isbn, customer_id):

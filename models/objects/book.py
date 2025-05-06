@@ -1,7 +1,12 @@
 from flask import json
 
+from models.objects import AttributeList, identity
+
 class Book:
-    REQUIRED_ATTRIBUTES = ["title", "author", "isbn", "copies"]
+    REQUIRED_ATTRIBUTES: AttributeList = [("title", identity, bool),
+                                            ("author", identity, bool),
+                                            ("isbn", identity, bool),
+                                            ("copies", int, lambda x: x >= 0)]
 
     def __init__(self, title: str, author: str, isbn: str, copies: int):
         self.title: str = title

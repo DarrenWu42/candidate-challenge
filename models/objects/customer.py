@@ -1,7 +1,11 @@
 from flask import json
 
+from models.objects import AttributeList, identity
+
 class Customer:
-    REQUIRED_ATTRIBUTES = ["name", "email", "customer_id"]
+    REQUIRED_ATTRIBUTES: AttributeList = [("name", identity, bool),
+                                            ("email", identity, bool),
+                                            ("customer_id", identity, bool)]
 
     def __init__(self, name: str, email: str, customer_id: str):
         self.name: str = name

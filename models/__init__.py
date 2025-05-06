@@ -1,2 +1,2 @@
 from .collections import Books, Customers, Checkouts
-from .objects import Book, Customer, Checkout
+from .objects import Book, Customer, Checkout, Return
