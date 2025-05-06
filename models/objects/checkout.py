@@ -36,5 +36,14 @@ class Checkout:
             "due_date": date.isoformat(self.due_date)
         }
 
+    def get_checkout_info(self):
+        return {
+            "isbn": self.book.isbn,
+            "title": self.book.title,
+            "author": self.book.author,
+            "checkout_date": date.isoformat(self.checkout_date),
+            "due_date": date.isoformat(self.due_date)
+        }
+
     def __str__(self):
         return json.dumps(self.get_response())
